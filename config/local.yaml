@@ -1,9 +1,0 @@
-env: "local"
-storage_path: "host=localhost port=5445 user=postgres password=postgres_1234 dbname=Authentication sslmode=disable"
-access_token_ttl: 15m
-refersh_token_ttl: 168h
-grpc:
-    port: ":9090"
-    timeout: 10h
-jwt:
-    secret_key: "E3IiecHXTaBytd5Sik50L/YvQTVlzmngF8u6TR+N66w"

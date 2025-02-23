@@ -1,0 +1,13 @@
+env: "local"
+storage_path: "host=postgres port=5432 user=postgres password=postgres_1234 dbname=Authentication sslmode=disable"
+access_token_ttl: 15m
+refresh_token_ttl: 168h
+grpc:
+    port: ":9090"
+    timeout: 5s
+jwt:
+    secret_key: "E3IiecHXTaBytd5Sik50L/YvQTVlzmngF8u6TR+N66w"
+mailgun:
+  domain: "sandboxd9ba58006e194ce8a74958327c44dacb.mailgun.org"
+  api_key: "dbd0d2ffe1b860e027f8368251ef1ff4-ac3d5f74-edfd82bf"
+  from_email: "no-reply@sandboxd9ba58006e194ce8a74958327c44dacb.mailgun.org"

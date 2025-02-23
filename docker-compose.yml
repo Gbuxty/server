@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_1234
+      POSTGRES_DB: Authentication
+    ports:
+      - "5445:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "9090:9090"
+    depends_on:
+      - postgres
+    environment:
+      DB_DSN: "postgres://postgres:postgres_1234@postgres:5432/Authentication?sslmode=disable"
+
+volumes:
+  postgres_data:

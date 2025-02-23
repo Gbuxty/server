@@ -7,22 +7,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var DB *pgxpool.Pool
 
-func NewDB(conntStr string) (*pgxpool.Pool, error) {
-
-	var err error
-
-	DB, err = pgxpool.New(context.Background(), conntStr)
-	if err != nil {
-		return nil, fmt.Errorf("bad connect to db %w", err)
-	}
-
-	return DB, nil
+type Database struct{
+	Conn *pgxpool.Pool
 }
 
-func CloseDb() {
-	if DB != nil {
-		DB.Close()
+func NewDB(conntStr string) (*Database, error) {
+
+
+	DB, err := pgxpool.New(context.Background(), conntStr)
+	if err != nil {
+		return nil, fmt.Errorf("can not connect to db %w", err)
 	}
+
+	return &Database{
+		Conn: DB,
+	},nil
+}
+
+func (d *Database)CloseDb() {
+	d.Conn.Close()
 }
