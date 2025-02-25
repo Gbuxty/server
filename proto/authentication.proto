@@ -65,7 +65,8 @@ message MeResponse{
 }
 
 message ConfirmEmailRequest {
-    string confirmation_token = 1; 
+    string email = 1; 
+    string confirmation_code=2;
 }
 
 message ConfirmEmailResponse {

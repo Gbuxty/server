@@ -7,7 +7,7 @@ grpc:
     timeout: 5s
 jwt:
     secret_key: "E3IiecHXTaBytd5Sik50L/YvQTVlzmngF8u6TR+N66w"
-mailgun:
-  domain: "sandboxd9ba58006e194ce8a74958327c44dacb.mailgun.org"
-  api_key: "dbd0d2ffe1b860e027f8368251ef1ff4-ac3d5f74-edfd82bf"
-  from_email: "no-reply@sandboxd9ba58006e194ce8a74958327c44dacb.mailgun.org"
+mailopost:
+    api_url: "https://api.mailopost.ru/v1"  
+    api_token: "c263ca13ea017f6d003c2b2802c4943a"        
+    from_email: "1kartofan@gmail.com"

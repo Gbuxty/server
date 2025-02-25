@@ -8,13 +8,14 @@ import (
 	"server/internal/config"
 	"server/internal/database"
 	"server/internal/logger"
+	"server/internal/mailer"
 	"server/internal/server"
 	"server/internal/storage"
 	"server/proto/gen"
 	"syscall"
 
-	"google.golang.org/grpc"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -44,15 +45,16 @@ func main() {
 
 	log.Logger.Info("Connected to database")
 
-	// Инициализация репозиториев и сервиса
+	// Инициализация репозиториев и сервиса и майлера
+	mailer := mailer.NewMailer(cfg.Mailopost.ApiURL, cfg.Mailopost.ApiToken, cfg.Mailopost.FromEmail)
 	userRepo := storage.NewUserStorage(db.Conn, log)
-	authService := server.NewAuthenticationService(userRepo, cfg.JWT.SecretKey, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, log,cfg.Mailgun)
+	authService := server.NewAuthenticationService(userRepo, cfg.JWT.SecretKey, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, log,mailer)
 
 	// Запуск сервера
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go Run(ctx, cfg.Grpc.Port, authService, log)
+	go Run(ctx, cfg.Grpc.Port, authService, log,)
 
 	// Ожидание сигнала завершения
 	stop := make(chan os.Signal, 1)
@@ -63,7 +65,7 @@ func main() {
 	cancel() // Отмена контекста для завершения работы сервера
 }
 
-func Run(ctx context.Context, port string, authService *server.AuthenticationService, log *logger.Logger) {
+func Run(ctx context.Context, port string, authService *server.AuthenticationService, log *logger.Logger,) {
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Logger.Error("Failed to listen TCP", zap.Error(err))

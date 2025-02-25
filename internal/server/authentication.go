@@ -3,14 +3,15 @@ package server
 import (
 	"context"
 	"fmt"
-	"server/internal/config"
+
 	"server/internal/jwt"
 	"server/internal/logger"
+	"server/internal/mailer"
 	"server/internal/storage"
 	"server/proto/gen"
 	"time"
 
-	"github.com/mailgun/mailgun-go"
+	"github.com/dchest/uniuri"
 	"go.uber.org/zap"
 
 	"golang.org/x/crypto/bcrypt"
@@ -23,17 +24,18 @@ type AuthenticationService struct {
 	gen.UnimplementedAuthenticationServer
 	accessTokenTTL  time.Duration
 	refreshTokenTTL time.Duration
-	mailgunConfig   *config.MailgunConfig
+	mailer          *mailer.Mailer
 }
 
-func NewAuthenticationService(userRepo *storage.UserStorage, jwtSecretKey string, accessTokenTTL time.Duration, refreshTokenTTL time.Duration, log *logger.Logger, mailgunConfig *config.MailgunConfig) *AuthenticationService {
+func NewAuthenticationService(userRepo *storage.UserStorage, jwtSecretKey string, accessTokenTTL time.Duration, refreshTokenTTL time.Duration, log *logger.Logger, mailer *mailer.Mailer) *AuthenticationService {
+
 	service := &AuthenticationService{
 		userStorage:     userRepo,
 		jwtSecretKey:    jwtSecretKey,
 		accessTokenTTL:  accessTokenTTL,
 		refreshTokenTTL: refreshTokenTTL,
 		logger:          log,
-		mailgunConfig:   mailgunConfig,
+		mailer:          mailer,
 	}
 
 	return service
@@ -60,34 +62,29 @@ func (s *AuthenticationService) Register(ctx context.Context, req *gen.RegisterR
 		return nil, fmt.Errorf("failed to register user: %w", err)
 	}
 
-	confirmationToken, expiresAt, err := jwt.GenerateConfirmationToken(userID, s.jwtSecretKey, 24*time.Hour, s.logger)
-	if err != nil {
-		s.logger.Logger.Error("Failed to generate confirmation token", zap.Error(err))
-		return nil, fmt.Errorf("failed to generate confirmation token: %w", err)
+	
+	confirmationCode := GenerateConfirmationCode()
+	confirmCodeExpiresAt := time.Now().Add(24 * time.Hour)
+
+	if err := s.userStorage.SaveConfirmationCode(ctx, userID, confirmationCode, confirmCodeExpiresAt); err != nil {
+		s.logger.Logger.Error("Failed to save confirmation code", zap.Error(err))
+		return nil, fmt.Errorf("failed to save confirmation code: %w", err)
 	}
 
-	// Сохранение токена в базе данных
-	if err := s.userStorage.SaveConfirmationToken(ctx, userID, confirmationToken, expiresAt); err != nil {
-		s.logger.Logger.Error("Failed to save confirmation token", zap.Error(err))
-		return nil, fmt.Errorf("failed to save confirmation token: %w", err)
-	}
-
-	// Отправка письма через Mailgun
-	mg := mailgun.NewMailgun(s.mailgunConfig.Domain, s.mailgunConfig.ApiKey)
-	message := mg.NewMessage(
-		s.mailgunConfig.FromEmail,
-		"Confirm your email",
-		"Please confirm your email by clicking the link: http://mygeorgedomen.com/confirm?token="+confirmationToken,
-		req.Email,
-	)
-	_, _, err = mg.Send(message)
-	if err != nil {
+	
+	emailBody := fmt.Sprintf("You confirmation code is :%s", confirmationCode)
+	if err := s.mailer.SendEmail(req.Email, "Confirm your email", emailBody); err != nil {
 		s.logger.Logger.Error("Failed to send confirmation email", zap.Error(err))
 		return nil, fmt.Errorf("failed to send confirmation email: %w", err)
 	}
+
 	s.logger.Logger.Info("User registered successfully", zap.String("email", req.Email))
 
 	return &gen.RegisterResponse{Success: true}, nil
+}
+
+func GenerateConfirmationCode() string {
+	return uniuri.NewLen(6)
 }
 
 func (s *AuthenticationService) ValidateRegister(ctx context.Context, req *gen.RegisterRequest) error {
@@ -272,15 +269,15 @@ func (s *AuthenticationService) Me(ctx context.Context, req *gen.MeRequest) (*ge
 }
 
 func (s *AuthenticationService) ConfirmEmail(ctx context.Context, req *gen.ConfirmEmailRequest) (*gen.ConfirmEmailResponse, error) {
-	s.logger.Logger.Info("Confirming email", zap.String("confirmation_token", req.ConfirmationToken))
+	s.logger.Logger.Info("Confirming email", zap.String("email",req.Email),zap.String("confirmation_code",req.ConfirmationCode))
 
-	// Проверяем токен и подтверждаем email
-	userID, err := s.userStorage.ConfirmEmail(ctx, req.ConfirmationToken)
+	userID,err:=s.userStorage.ConfirmEmail(ctx,req.Email,req.ConfirmationCode)
 	if err != nil {
-		s.logger.Logger.Error("Failed to confirm email", zap.Error(err))
-		return nil, fmt.Errorf("failed to confirm email: %w", err)
-	}
+        s.logger.Logger.Error("Failed to confirm email", zap.Error(err))
+        return nil, fmt.Errorf("failed to confirm email: %w", err)
+    }
 
 	s.logger.Logger.Info("Email confirmed successfully", zap.Int64("userID", userID))
+
 	return &gen.ConfirmEmailResponse{Success: true}, nil
 }

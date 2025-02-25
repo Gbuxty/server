@@ -53,27 +53,7 @@ func GenerateRefreshToken(userID int64, email string, secretKey string, refreshT
 	return signedToken, expiresAt, nil
 }
 
-func GenerateConfirmationToken(userID int64, sercretKey string, confirmationTokenTTL time.Duration, log *logger.Logger) (string, time.Time, error) {
-	log.Logger.Info("Generating confirmation token", zap.Int64("userID", userID))
 
-	expiresAt := time.Now().Add(confirmationTokenTTL)
-
-	claims:=jwt.MapClaims{
-		"user_id":userID,
-		"exp":expiresAt.Unix(),
-	}
-
-	token:=jwt.NewWithClaims(jwt.SigningMethodHS256,claims)
-
-	signedToken,err:=token.SignedString([]byte(sercretKey))
-	if err != nil {
-		log.Logger.Error("Failed to generate confirmation token", zap.Int64("userID", userID), zap.Error(err))
-		return "", time.Time{}, fmt.Errorf("failed to generate confirmation token: %w", err)
-	}
-
-	log.Logger.Info("Confirmation token generated successfully", zap.Int64("userID", userID))
-	return signedToken, expiresAt, nil
-}
 
 func ExtractUserIDFromToken(tokenString string, secretKey string, log *logger.Logger) (int64, error) {
 	log.Logger.Info("Extracting user ID from token")

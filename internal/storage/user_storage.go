@@ -82,6 +82,7 @@ func (r *UserStorage) GetUserByID(ctx context.Context, userID int64) (*User, err
 	r.logger.Logger.Info("User fetched successfully", zap.Int64("id", user.ID), zap.String("email", user.Email))
 	return &user, nil
 }
+
 func (r *UserStorage) GetUserIDByRefreshToken(ctx context.Context, refreshToken string) (int64, time.Time, error) {
 	var (
 		userID    int64
@@ -178,6 +179,7 @@ func (r *UserStorage) DeleteAccesshToken(ctx context.Context, userID int64) erro
 	r.logger.Logger.Info("Access token deleted successfully", zap.Int64("userID", userID))
 	return nil
 }
+
 func (r *UserStorage) DeleteExpiredRefreshTokens(ctx context.Context) error { // а на хуй оно надо?
 	r.logger.Logger.Info("Deleting expired refresh tokens")
 
@@ -190,43 +192,50 @@ func (r *UserStorage) DeleteExpiredRefreshTokens(ctx context.Context) error { //
 	r.logger.Logger.Info("Expired refresh tokens deleted successfully")
 	return nil
 }
-func (r *UserStorage) ConfirmEmail(ctx context.Context, confirmationToken string) (int64, error) {
-	r.logger.Logger.Info("Confirming email", zap.String("confirmation_token", confirmationToken))
 
-	var userID int64
-	query := `  UPDATE users
+func (r *UserStorage) ConfirmEmail(ctx context.Context, email, code string) (int64, error) {
+    r.logger.Logger.Info("Confirming email", zap.String("email", email), zap.String("confirmation_code", code))
+
+    var userID int64
+    query := `
+        UPDATE users
         SET email_confirmed = true
         WHERE id = (
             SELECT user_id
             FROM users_tokens
-            WHERE confirmation_token = $1
+            WHERE confirmation_code = $1 AND confirmation_code_expires_at > NOW()
         )
-        RETURNING id`
-	err := r.db.QueryRow(ctx, query, confirmationToken).Scan(&userID)
-	if err != nil {
-		r.logger.Logger.Error("Failed to confirm email", zap.Error(err))
-		return 0, fmt.Errorf("failed to confirm email: %w", err)
-	}
+        AND email = $2
+        RETURNING id
+    `
+    err := r.db.QueryRow(ctx, query, code, email).Scan(&userID)
+    if err != nil {
+        r.logger.Logger.Error("Failed to confirm email", zap.Error(err))
+        return 0, fmt.Errorf("failed to confirm email: %w", err)
+    }
 
-	r.logger.Logger.Info("Email confirmed successfully", zap.Int64("userID", userID))
-	return userID, nil
+    r.logger.Logger.Info("Email confirmed successfully", zap.Int64("userID", userID))
+    return userID, nil
 }
 
-func (r *UserStorage) SaveConfirmationToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error {
-	r.logger.Logger.Info("Saving confirmation token", zap.Int64("userID", userID))
+func (r *UserStorage) SaveConfirmationCode(ctx context.Context,userID int64,confirmationCode string ,confirmCodeExpiresAt time.Time)error{
+	r.logger.Logger.Info("Saving confirmation code", zap.Int64("userID", userID))
 
-	query := `
-		INSERT INTO users_tokens (user_id, confirmation_token, confirmation_token_expires_at)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id)
-		DO UPDATE SET confirmation_token = $2, confirmation_token_expires_at = $3
-	`
-	_, err := r.db.Exec(ctx, query, userID, token, expiresAt)
-	if err != nil {
-		r.logger.Logger.Error("Failed to save confirmation token", zap.Error(err))
-		return fmt.Errorf("failed to save confirmation token: %w", err)
-	}
+    query := `
+        INSERT INTO users_tokens (user_id, confirmation_code, confirmation_code_expires_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id)
+        DO UPDATE SET confirmation_code = $2, confirmation_code_expires_at = $3
+    `
 
-	r.logger.Logger.Info("Confirmation token saved successfully", zap.Int64("userID", userID))
-	return nil
+    
+    _, err := r.db.Exec(ctx, query, userID, confirmationCode, confirmCodeExpiresAt)
+    if err != nil {
+        r.logger.Logger.Error("Failed to save confirmation code", zap.Error(err))
+        return fmt.Errorf("failed to save confirmation code: %w", err)
+    }
+
+    r.logger.Logger.Info("Confirmation code saved successfully", zap.Int64("userID", userID))
+    return nil
+
 }
