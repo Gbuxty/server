@@ -46,7 +46,7 @@ func main() {
 	log.Logger.Info("Connected to database")
 
 	// Инициализация репозиториев и сервиса и майлера
-	mailer := mailer.NewMailer(cfg.Mailopost.ApiURL, cfg.Mailopost.ApiToken, cfg.Mailopost.FromEmail)
+	mailer := mailer.NewMailer(cfg.Mailopost.ApiURL, cfg.Mailopost.ApiToken, cfg.Mailopost.FromEmail,log)
 	userRepo := storage.NewUserStorage(db.Conn, log)
 	authService := server.NewAuthenticationService(userRepo, cfg.JWT.SecretKey, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, log,mailer)
 

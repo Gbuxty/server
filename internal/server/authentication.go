@@ -184,13 +184,13 @@ func (s *AuthenticationService) Logout(ctx context.Context, req *gen.LogoutReque
 func (s *AuthenticationService) Refresh(ctx context.Context, req *gen.RefreshRequest) (*gen.RefreshResponse, error) {
 	s.logger.Logger.Info("Refreshing tokens", zap.String("refreshToken", req.RefreshToken))
 
-	//  Получаем userID по refreshToken
+	
 	userID, expiresAt, err := s.userStorage.GetUserIDByRefreshToken(ctx, req.RefreshToken)
 	if err != nil {
 		s.logger.Logger.Error("Invalid refresh token", zap.String("refreshToken", req.RefreshToken), zap.Error(err))
 		return nil, fmt.Errorf("invalid refresh token: %w", err)
 	}
-	// Проверяем  срок действия RefreshToken
+	
 	if time.Now().After(expiresAt) {
 		s.logger.Logger.Error("Refresh token expired", zap.Int64("userID", userID))
 		if err := s.userStorage.DeleteRefreshToken(ctx, userID); err != nil {
@@ -198,14 +198,13 @@ func (s *AuthenticationService) Refresh(ctx context.Context, req *gen.RefreshReq
 		}
 		return nil, fmt.Errorf("refresh token expired")
 	}
-	//  Получаем данные пользователя по userID
+	
 	user, err := s.userStorage.GetUserByID(ctx, userID)
 	if err != nil {
 		s.logger.Logger.Error("Failed to fetch user by ID", zap.Int64("userID", userID), zap.Error(err))
 		return nil, fmt.Errorf("failed to refresh tokens: %w", err)
 	}
 
-	//  Генерируем новые токены
 	accessToken, accessTokenExpiresAt, err := jwt.GenerateAccessToken(user.ID, user.Email, s.jwtSecretKey, s.accessTokenTTL, s.logger)
 	if err != nil {
 		s.logger.Logger.Error("Failed to generate access token", zap.Int64("userID", user.ID), zap.Error(err))
@@ -218,7 +217,7 @@ func (s *AuthenticationService) Refresh(ctx context.Context, req *gen.RefreshReq
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
-	//  Сохраняем новый refreshToken в базе данных
+	
 	if err := s.userStorage.SaveAccessToken(ctx, user.ID, accessToken, accessTokenExpiresAt); err != nil {
 		s.logger.Logger.Error("Failed to save access token", zap.Int64("userID", user.ID), zap.Error(err))
 		return nil, fmt.Errorf("failed to refresh tokens: %w", err)

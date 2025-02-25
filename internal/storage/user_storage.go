@@ -180,7 +180,7 @@ func (r *UserStorage) DeleteAccesshToken(ctx context.Context, userID int64) erro
 	return nil
 }
 
-func (r *UserStorage) DeleteExpiredRefreshTokens(ctx context.Context) error { // а на хуй оно надо?
+/* func (r *UserStorage) DeleteExpiredRefreshTokens(ctx context.Context) error { // а на хуй оно надо?
 	r.logger.Logger.Info("Deleting expired refresh tokens")
 
 	query := `UPDATE users SET refresh_token = NULL, refresh_token_expires_at = NULL WHERE refresh_token_expires_at < NOW()`
@@ -191,7 +191,7 @@ func (r *UserStorage) DeleteExpiredRefreshTokens(ctx context.Context) error { //
 	}
 	r.logger.Logger.Info("Expired refresh tokens deleted successfully")
 	return nil
-}
+} */
 
 func (r *UserStorage) ConfirmEmail(ctx context.Context, email, code string) (int64, error) {
     r.logger.Logger.Info("Confirming email", zap.String("email", email), zap.String("confirmation_code", code))
